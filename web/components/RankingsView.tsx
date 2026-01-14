@@ -1,6 +1,6 @@
 'use client';
 
-import { FiMedal, FiStar } from 'react-icons/fi';
+import { FiAward, FiStar } from 'react-icons/fi';
 
 interface RankingsViewProps {
   rankings: {
@@ -21,7 +21,7 @@ const getRankColor = (rank: number) => {
 };
 
 const getRankIcon = (rank: number) => {
-  if (rank <= 3) return FiMedal;
+  if (rank <= 3) return FiAward;
   return null;
 };
 

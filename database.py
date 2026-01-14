@@ -8,14 +8,22 @@ import sqlite3
 from typing import List, Dict, Optional, Union, Any
 from contextlib import contextmanager
 from datetime import datetime
-import psycopg2
-from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 from base_scraper import ServiceFeatures
 
+# Conditional PostgreSQL import
+try:
+    import psycopg2
+    from psycopg2 import pool
+    from psycopg2.extras import RealDictCursor
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+    psycopg2 = None
+
 # Load environment variables
 load_dotenv()
+
 
 class DatabaseManager:
     """Manages database for todo service features with support for SQLite and PostgreSQL"""
@@ -23,7 +31,7 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         self.database_url = os.environ.get('DATABASE_URL')
         self.db_path = db_path or os.environ.get('DB_PATH', "todo_services.db")
-        self.is_postgres = self.database_url is not None
+        self.is_postgres = self.database_url is not None and POSTGRES_AVAILABLE
         self.pg_pool = None
         
         if self.is_postgres:
@@ -31,6 +39,8 @@ class DatabaseManager:
             self.placeholder = "%s"
             self.init_pg_pool()
         else:
+            if self.database_url and not POSTGRES_AVAILABLE:
+                print("Warning: DATABASE_URL set but psycopg2 not available. Using SQLite.")
             print(f"Using SQLite database at {self.db_path}")
             self.placeholder = "?"
             

@@ -1,6 +1,6 @@
 'use client';
 
-import { FiHome, FiTrophy, FiColumns, FiGrid, FiSearch } from 'react-icons/fi';
+import { FiHome, FiAward, FiColumns, FiGrid, FiSearch } from 'react-icons/fi';
 
 type View = 'overview' | 'rankings' | 'compare' | 'services';
 
@@ -13,7 +13,7 @@ interface HeaderProps {
 
 const navItems = [
   { id: 'overview' as View, label: 'Overview', icon: FiHome },
-  { id: 'rankings' as View, label: 'Rankings', icon: FiTrophy },
+  { id: 'rankings' as View, label: 'Rankings', icon: FiAward },
   { id: 'compare' as View, label: 'Compare', icon: FiColumns },
   { id: 'services' as View, label: 'Services', icon: FiGrid },
 ];

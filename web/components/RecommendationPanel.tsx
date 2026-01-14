@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiLightbulb, FiSparkles } from 'react-icons/fi';
+import { FiZap, FiStar } from 'react-icons/fi';
 
 interface RecommendationPanelProps {
   FEATURE_LABELS: Record<string, string>;
@@ -53,7 +53,7 @@ export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPa
   return (
     <div className="card bg-gradient-to-br from-primary-50 to-white border-primary-100">
       <div className="flex items-center gap-2 mb-6">
-        <FiLightbulb className="text-primary-600" size={24} />
+        <FiZap className="text-primary-600" size={24} />
         <h2 className="text-2xl font-bold text-gray-900">Find Your Perfect Todo App</h2>
       </div>
 
@@ -118,7 +118,7 @@ export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPa
                   `}
                 >
                   <div className="flex items-center gap-3">
-                    {index === 0 && <FiSparkles className="text-yellow-500" size={20} />}
+                    {index === 0 && <FiStar className="text-yellow-500" size={20} />}
                     <div>
                       <h4 className="font-semibold text-gray-900">{rec.service_name}</h4>
                       <p className="text-xs text-gray-500">Rank #{rec.rank}</p>
