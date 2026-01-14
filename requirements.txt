@@ -1,0 +1,10 @@
+requests==2.31.0
+beautifulsoup4==4.12.3
+selenium==4.16.0
+pandas>=2.2.3
+lxml==5.1.0
+python-dotenv==1.0.0
+psycopg2-binary==2.9.9
+Flask==3.0.2
+Flask-Cors==4.0.0
+gunicorn==21.2.0
