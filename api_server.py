@@ -11,19 +11,46 @@ db = DatabaseManager()
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy", "database": "connected" if db.is_postgres else "sqlite"}), 200
+    return jsonify({
+        "status": "healthy", 
+        "database": "connected" if db.is_postgres else "sqlite",
+        "supports_categories": True
+    }), 200
+
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    """Get all available categories"""
+    try:
+        categories = db.get_categories()
+        return jsonify(categories)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/categories/<slug>', methods=['GET'])
+def get_category(slug):
+    """Get a specific category by slug"""
+    try:
+        category = db.get_category_by_slug(slug)
+        if not category:
+            return jsonify({"error": "Category not found"}), 404
+        return jsonify(category)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/services', methods=['GET'])
 def get_services():
     try:
         name = request.args.get('name')
+        category = request.args.get('category')
+        
         if name:
             service = db.get_service_with_features(name)
             if not service:
                 return jsonify({"error": "Service not found"}), 404
             return jsonify(service)
         
-        services = db.get_all_services()
+        # Support filtering by category slug
+        services = db.get_all_services(category_slug=category)
         return jsonify(services)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

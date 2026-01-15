@@ -98,9 +98,23 @@ class DatabaseManager:
         """Initialize database schema"""
         # ID column definition differs
         id_col = "SERIAL PRIMARY KEY" if self.is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        json_type = "JSONB" if self.is_postgres else "TEXT"
         
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Categories table (must be created before services for foreign key)
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS categories (
+                    id {id_col},
+                    name TEXT UNIQUE NOT NULL,
+                    slug TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    feature_schema {json_type},
+                    ranking_contexts {json_type},
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             
             # Services table
             cursor.execute(f"""
@@ -110,6 +124,7 @@ class DatabaseManager:
                     url TEXT NOT NULL,
                     pricing TEXT,
                     platforms TEXT,
+                    category_id INTEGER REFERENCES categories(id),
                     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -166,8 +181,10 @@ class DatabaseManager:
             # Create indexes (PostgreSQL already has IF NOT EXISTS support)
             try:
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_name ON services(name)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_category ON services(category_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_features_service ON features(service_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_rankings_context ON rankings(context)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug)")
             except:
                 # Some older PostgreSQL might not support IF NOT EXISTS for indexes
                 pass
@@ -247,15 +264,27 @@ class DatabaseManager:
 
             return service_id
 
-    def get_all_services(self) -> List[Dict]:
-        """Get all services with their features as a map"""
+    def get_all_services(self, category_slug: str = None) -> List[Dict]:
+        """Get all services with their features as a map, optionally filtered by category"""
+        p = self.placeholder
         with self.get_connection() as conn:
             if self.is_postgres:
                 cursor = conn.cursor(cursor_factory=RealDictCursor)
             else:
                 cursor = conn.cursor()
-                
-            cursor.execute("SELECT * FROM services ORDER BY name")
+            
+            if category_slug:
+                # Get category id first
+                cursor.execute(f"SELECT id FROM categories WHERE slug = {p}", (category_slug,))
+                cat_row = cursor.fetchone()
+                if cat_row:
+                    cat_id = cat_row['id'] if self.is_postgres else cat_row[0]
+                    cursor.execute(f"SELECT * FROM services WHERE category_id = {p} ORDER BY name", (cat_id,))
+                else:
+                    return []
+            else:
+                cursor.execute("SELECT * FROM services ORDER BY name")
+            
             services = [dict(row) for row in cursor.fetchall()]
 
             for service in services:
@@ -487,6 +516,103 @@ class DatabaseManager:
                 cursor = conn.cursor()
             cursor.execute(f"SELECT context, rank, score FROM rankings WHERE service_id = {p}", (service_id,))
             return {row['context']: {'rank': row['rank'], 'score': row['score']} for row in cursor.fetchall()}
+
+    # ==================== Category Methods ====================
+
+    def add_category(self, name: str, slug: str, description: str = None, 
+                     feature_schema: Dict = None, ranking_contexts: Dict = None) -> int:
+        """Add a new category"""
+        p = self.placeholder
+        with self.get_connection() as conn:
+            if self.is_postgres:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+            else:
+                cursor = conn.cursor()
+            
+            feature_json = json.dumps(feature_schema) if feature_schema else None
+            contexts_json = json.dumps(ranking_contexts) if ranking_contexts else None
+            
+            if self.is_postgres:
+                cursor.execute(f"""
+                    INSERT INTO categories (name, slug, description, feature_schema, ranking_contexts)
+                    VALUES ({p}, {p}, {p}, {p}, {p})
+                    ON CONFLICT (slug) DO UPDATE SET 
+                        name = EXCLUDED.name,
+                        description = EXCLUDED.description,
+                        feature_schema = EXCLUDED.feature_schema,
+                        ranking_contexts = EXCLUDED.ranking_contexts
+                    RETURNING id
+                """, (name, slug, description, feature_json, contexts_json))
+                return cursor.fetchone()['id']
+            else:
+                cursor.execute(f"""
+                    INSERT OR REPLACE INTO categories (name, slug, description, feature_schema, ranking_contexts)
+                    VALUES ({p}, {p}, {p}, {p}, {p})
+                """, (name, slug, description, feature_json, contexts_json))
+                return cursor.lastrowid
+
+    def get_categories(self) -> List[Dict]:
+        """Get all categories"""
+        with self.get_connection() as conn:
+            if self.is_postgres:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+            else:
+                cursor = conn.cursor()
+            
+            cursor.execute("SELECT * FROM categories ORDER BY name")
+            categories = [dict(row) for row in cursor.fetchall()]
+            
+            # Parse JSON fields
+            for cat in categories:
+                if cat.get('feature_schema') and isinstance(cat['feature_schema'], str):
+                    try:
+                        cat['feature_schema'] = json.loads(cat['feature_schema'])
+                    except:
+                        pass
+                if cat.get('ranking_contexts') and isinstance(cat['ranking_contexts'], str):
+                    try:
+                        cat['ranking_contexts'] = json.loads(cat['ranking_contexts'])
+                    except:
+                        pass
+            
+            return categories
+
+    def get_category_by_slug(self, slug: str) -> Optional[Dict]:
+        """Get a category by its slug"""
+        p = self.placeholder
+        with self.get_connection() as conn:
+            if self.is_postgres:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+            else:
+                cursor = conn.cursor()
+            
+            cursor.execute(f"SELECT * FROM categories WHERE slug = {p}", (slug,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+            
+            cat = dict(row)
+            # Parse JSON fields
+            if cat.get('feature_schema') and isinstance(cat['feature_schema'], str):
+                try:
+                    cat['feature_schema'] = json.loads(cat['feature_schema'])
+                except:
+                    pass
+            if cat.get('ranking_contexts') and isinstance(cat['ranking_contexts'], str):
+                try:
+                    cat['ranking_contexts'] = json.loads(cat['ranking_contexts'])
+                except:
+                    pass
+            
+            return cat
+
+    def assign_service_to_category(self, service_id: int, category_id: int):
+        """Assign a service to a category"""
+        p = self.placeholder
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE services SET category_id = {p} WHERE id = {p}", (category_id, service_id))
 
     def export_to_json(self, output_file: str):
         """Export all data to JSON file"""
