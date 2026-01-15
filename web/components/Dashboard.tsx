@@ -210,10 +210,22 @@ export default function Dashboard() {
         )}
       </main>
 
-      <footer className="mt-16 py-8 border-t border-gray-200 bg-white">
+      <footer className="mt-16 py-12 border-t border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600">
-          <p>ServiceRank - High-fidelity feature comparison and data-driven recommendations</p>
-          <p className="text-sm mt-2">Last updated: {new Date().toLocaleDateString()}</p>
+          <p className="font-semibold text-gray-900 mb-2">ServiceRank</p>
+          <p className="text-sm max-w-md mx-auto mb-6">
+            High-fidelity feature comparison and data-driven recommendations for modern software services.
+          </p>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-sm border-t border-gray-100 pt-6">
+            <p>© {new Date().getFullYear()} Shivangi. All rights reserved.</p>
+            <span className="hidden md:inline text-gray-300">|</span>
+            <p className="flex items-center justify-center gap-1.5">
+              Made with <span className="text-red-500 animate-pulse">❤️</span> by <span className="font-bold text-gray-900">Shivangi</span>
+            </p>
+          </div>
+
+          <p className="text-xs text-gray-400 mt-6 italic">Last updated: {new Date().toLocaleDateString()}</p>
         </div>
       </footer>
     </div>
