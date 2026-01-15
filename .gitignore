@@ -50,3 +50,4 @@ Thumbs.db
 .env.example
 .venv/
 .vercel
+.env*.local
