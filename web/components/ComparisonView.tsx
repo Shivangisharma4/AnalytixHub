@@ -25,7 +25,12 @@ interface ComparisonViewProps {
 
 export default function ComparisonView({ services, comparison, FEATURE_LABELS }: ComparisonViewProps) {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [filterFeatures, setFilterFeatures] = useState<string[]>(Object.keys(FEATURE_LABELS));
+  const [filterFeatures, setFilterFeatures] = useState<string[]>([]);
+
+  // Reset filters when category changes
+  useEffect(() => {
+    setFilterFeatures(Object.keys(FEATURE_LABELS));
+  }, [FEATURE_LABELS]);
 
   const toggleService = (serviceName: string) => {
     setSelectedServices(prev =>

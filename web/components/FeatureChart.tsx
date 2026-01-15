@@ -42,6 +42,7 @@ const COLORS = [
 ];
 
 export default function FeatureChart({ services, FEATURE_LABELS }: FeatureChartProps) {
+  const totalFeaturesCount = Object.keys(FEATURE_LABELS).length;
   // Prepare data for radar chart - top 5 services
   const topServices = services.slice(0, 5);
 
@@ -64,10 +65,15 @@ export default function FeatureChart({ services, FEATURE_LABELS }: FeatureChartP
   }).sort((a, b) => b.count - a.count);
 
   // Prepare data for service feature count
-  const serviceFeatureCount = services.map(service => ({
-    name: service.name,
-    count: Object.values(service.features).filter(Boolean).length,
-  })).sort((a, b) => b.count - a.count);
+  const serviceFeatureCount = services.map(service => {
+    // Only count features that are in the current category's schema
+    const relevantKeys = Object.keys(FEATURE_LABELS);
+    const count = Object.entries(service.features).filter(([key, val]) => relevantKeys.includes(key) && val).length;
+    return {
+      name: service.name,
+      count: count,
+    };
+  }).sort((a, b) => b.count - a.count);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -141,9 +147,9 @@ export default function FeatureChart({ services, FEATURE_LABELS }: FeatureChartP
               textAnchor="end"
               height={60}
             />
-            <YAxis domain={[0, 11]} tick={{ fill: '#6b7280' }} />
+            <YAxis domain={[0, totalFeaturesCount]} tick={{ fill: '#6b7280' }} />
             <Tooltip
-              formatter={(value: number) => [`${value}/11 features`, 'Total']}
+              formatter={(value: number) => [`${value}/${totalFeaturesCount} features`, 'Total']}
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
             />
             <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#0ea5e9" />

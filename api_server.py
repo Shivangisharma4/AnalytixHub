@@ -66,7 +66,8 @@ def get_rankings(context):
 @app.route('/api/compare', methods=['GET'])
 def get_comparison():
     try:
-        comparison = db.get_feature_comparison()
+        category = request.args.get('category')
+        comparison = db.get_feature_comparison(category_slug=category)
         return jsonify(comparison)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -75,6 +76,7 @@ def get_comparison():
 def get_recommendations():
     try:
         context = request.args.get('context', 'personal_use')
+        category = request.args.get('category')
         free_tier = request.args.get('free_tier') == 'true'
         collaboration = request.args.get('collaboration') == 'true'
         offline_mode = request.args.get('offline_mode') == 'true'
@@ -90,7 +92,7 @@ def get_recommendations():
         if request.args.get('offline_mode') is not None: requirements['offline_mode'] = offline_mode
         if request.args.get('api_available') is not None: requirements['api_available'] = api_available
         
-        recommendations = rs.recommend_service(requirements, context)
+        recommendations = rs.recommend_service(requirements, context, category_slug=category)
         return jsonify(recommendations)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

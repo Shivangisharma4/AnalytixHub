@@ -18,6 +18,7 @@ interface ServiceCardsProps {
 }
 
 export default function ServiceCards({ services, FEATURE_LABELS }: ServiceCardsProps) {
+  const totalFeaturesCount = Object.keys(FEATURE_LABELS).length;
   const getPlatformIcons = (platforms: string) => {
     try {
       const parsed = JSON.parse(platforms);
@@ -30,7 +31,9 @@ export default function ServiceCards({ services, FEATURE_LABELS }: ServiceCardsP
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {services.map(service => {
-        const featureCount = Object.values(service.features).filter(Boolean).length;
+        // Only count features that are in the current category's schema
+        const relevantKeys = Object.keys(FEATURE_LABELS);
+        const featureCount = Object.entries(service.features).filter(([key, val]) => relevantKeys.includes(key) && val).length;
         const platforms = getPlatformIcons(service.platforms);
 
         return (
@@ -68,12 +71,12 @@ export default function ServiceCards({ services, FEATURE_LABELS }: ServiceCardsP
             <div className="mb-4">
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">Features</span>
-                <span className="font-semibold text-primary-600">{featureCount}/11</span>
+                <span className="font-semibold text-primary-600">{featureCount}/{totalFeaturesCount}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-primary-600 h-2 rounded-full transition-all"
-                  style={{ width: `${(featureCount / 11) * 100}%` }}
+                  style={{ width: `${(featureCount / (totalFeaturesCount || 1)) * 100}%` }}
                 />
               </div>
             </div>

@@ -130,6 +130,24 @@ class DatabaseManager:
                 )
             """)
 
+            # Migration: Add category_id to services if it doesn't exist
+            if self.is_postgres:
+                cursor.execute("""
+                    DO $$ 
+                    BEGIN 
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='services' AND column_name='category_id') THEN
+                            ALTER TABLE services ADD COLUMN category_id INTEGER REFERENCES categories(id);
+                        END IF;
+                    END $$;
+                """)
+            else:
+                # SQLite doesn't support IF NOT EXISTS for columns, check manually
+                cursor.execute("PRAGMA table_info(services)")
+                columns = [info[1] for info in cursor.fetchall()]
+                if 'category_id' not in columns:
+                    cursor.execute("ALTER TABLE services ADD COLUMN category_id INTEGER REFERENCES categories(id)")
+
             # Features table
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS features (
@@ -178,16 +196,15 @@ class DatabaseManager:
                 )
             """)
 
-            # Create indexes (PostgreSQL already has IF NOT EXISTS support)
+            # Create indexes
             try:
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_name ON services(name)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_category ON services(category_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_features_service ON features(service_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_rankings_context ON rankings(context)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug)")
-            except:
-                # Some older PostgreSQL might not support IF NOT EXISTS for indexes
-                pass
+            except Exception as e:
+                print(f"Warning: Could not create some indexes: {e}")
 
     def save_service_features(self, features: ServiceFeatures) -> int:
         """Save or update a service and its features"""
@@ -325,19 +342,29 @@ class DatabaseManager:
             row = cursor.fetchone()
             return dict(row) if row else None
 
-    def get_feature_comparison(self) -> Dict:
-        """Get a feature comparison matrix for all services"""
+    def get_feature_comparison(self, category_slug: str = None) -> Dict:
+        """Get a feature comparison matrix for services, optionally filtered by category"""
+        p = self.placeholder
         with self.get_connection() as conn:
             if self.is_postgres:
                 cursor = conn.cursor(cursor_factory=RealDictCursor)
             else:
                 cursor = conn.cursor()
-            cursor.execute("""
+            
+            query = """
                 SELECT s.name, f.feature_name, f.is_available
                 FROM services s
                 JOIN features f ON s.id = f.service_id
-                ORDER BY s.name, f.feature_name
-            """)
+            """
+            params = []
+            
+            if category_slug:
+                query += f" JOIN categories c ON s.category_id = c.id WHERE c.slug = {p} "
+                params.append(category_slug)
+                
+            query += " ORDER BY s.name, f.feature_name "
+            
+            cursor.execute(query, tuple(params))
 
             comparison = {}
             for row in cursor.fetchall():

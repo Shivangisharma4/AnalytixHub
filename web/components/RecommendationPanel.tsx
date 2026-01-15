@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { FiZap, FiStar } from 'react-icons/fi';
+import { Category } from '@/lib/db';
 
 interface RecommendationPanelProps {
   FEATURE_LABELS: Record<string, string>;
+  categorySlug?: string;
+  category?: Category | null;
 }
 
 interface Recommendation {
@@ -13,28 +16,38 @@ interface Recommendation {
   service_name: string;
 }
 
-export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPanelProps) {
-  const [context, setContext] = useState('personal_use');
-  const [freeTier, setFreeTier] = useState(false);
-  const [collaboration, setCollaboration] = useState(false);
-  const [offlineMode, setOfflineMode] = useState(false);
+export default function RecommendationPanel({ FEATURE_LABELS, categorySlug, category }: RecommendationPanelProps) {
+  const [context, setContext] = useState('');
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const contextOptions = [
-    { value: 'personal_use', label: 'Personal Use' },
-    { value: 'team_collaboration', label: 'Team Collaboration' },
-    { value: 'enterprise', label: 'Enterprise' },
-    { value: 'minimalist', label: 'Minimalist' },
-  ];
+  // Initialize context when category changes
+  useEffect(() => {
+    if (category?.ranking_contexts) {
+      const firstContext = Object.keys(category.ranking_contexts)[0];
+      setContext(firstContext || '');
+      setFeatures({});
+    }
+  }, [category]);
+
+  const contextOptions = category?.ranking_contexts
+    ? Object.entries(category.ranking_contexts).map(([value, info]) => ({
+      value,
+      label: info.label
+    }))
+    : [];
 
   useEffect(() => {
+    if (!context || !categorySlug) return;
+
     async function fetchRecommendations() {
       setLoading(true);
-      const params = new URLSearchParams({ context });
-      if (freeTier) params.set('free_tier', 'true');
-      if (collaboration) params.set('collaboration', 'true');
-      if (offlineMode) params.set('offline_mode', 'true');
+      const params = new URLSearchParams({ context, category: categorySlug });
+
+      Object.entries(features).forEach(([key, value]) => {
+        if (value) params.set(key, 'true');
+      });
 
       try {
         const res = await fetch(`/api/recommend?${params}`);
@@ -48,13 +61,20 @@ export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPa
     }
 
     fetchRecommendations();
-  }, [context, freeTier, collaboration, offlineMode]);
+  }, [context, features, categorySlug]);
+
+  const toggleFeature = (key: string) => {
+    setFeatures(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   return (
     <div className="card bg-gradient-to-br from-primary-50 to-white border-primary-100">
       <div className="flex items-center gap-2 mb-6">
         <FiZap className="text-primary-600" size={24} />
-        <h2 className="text-2xl font-bold text-gray-900">Find Your Perfect Todo App</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Find Your Perfect {category?.name.replace(' Apps', '') || 'Service'}</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -68,6 +88,7 @@ export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPa
               onChange={(e) => setContext(e.target.value)}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
+              <option value="" disabled>Select use case...</option>
               {contextOptions.map(option => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -80,16 +101,12 @@ export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPa
             <label className="block text-sm font-medium text-gray-700">
               Must-Have Features
             </label>
-            {[
-              { key: 'freeTier', label: 'Free Tier Available', state: freeTier, setter: setFreeTier },
-              { key: 'collaboration', label: 'Team Collaboration', state: collaboration, setter: setCollaboration },
-              { key: 'offlineMode', label: 'Offline Mode', state: offlineMode, setter: setOfflineMode },
-            ].map(({ key, label, state, setter }) => (
+            {Object.entries(FEATURE_LABELS).slice(0, 6).map(([key, label]) => (
               <label key={key} className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={state}
-                  onChange={(e) => setter(e.target.checked)}
+                  checked={!!features[key]}
+                  onChange={() => toggleFeature(key)}
                   className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-gray-700">{label}</span>
@@ -138,3 +155,4 @@ export default function RecommendationPanel({ FEATURE_LABELS }: RecommendationPa
     </div>
   );
 }
+

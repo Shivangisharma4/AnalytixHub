@@ -162,9 +162,9 @@ class RankingSystem:
             for context, data in sorted(rankings.items(), key=lambda x: x[1]['rank']):
                 print(f"  #{data['rank']} - {context.replace('_', ' ')} (score: {data['score']:.1f})")
 
-    def recommend_service(self, requirements: Dict[str, bool], context: str = 'personal_use') -> List[Dict]:
-        """Recommend services based on specific requirements"""
-        comparison = self.db.get_feature_comparison()
+    def recommend_service(self, requirements: Dict[str, bool], context: str = 'personal_use', category_slug: str = None) -> List[Dict]:
+        """Recommend services based on specific requirements and category"""
+        comparison = self.db.get_feature_comparison(category_slug=category_slug)
 
         scored_services = []
 
