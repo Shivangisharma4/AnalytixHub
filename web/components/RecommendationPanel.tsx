@@ -43,7 +43,11 @@ export default function RecommendationPanel({ FEATURE_LABELS, categorySlug, cate
 
     async function fetchRecommendations() {
       setLoading(true);
-      const params = new URLSearchParams({ context, category: categorySlug });
+      const queryParams: Record<string, string> = {
+        context,
+        category: categorySlug || ''
+      };
+      const params = new URLSearchParams(queryParams);
 
       Object.entries(features).forEach(([key, value]) => {
         if (value) params.set(key, 'true');
